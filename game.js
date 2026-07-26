@@ -157,6 +157,12 @@ function loadHighScore() {
 function saveHighScore() {
   try { localStorage.setItem("mc_highscore", String(highScore)); } catch (e) { /* ignore */ }
 }
+function loadMute() {
+  try { muted = localStorage.getItem("mc_muted") === "1"; } catch (e) { muted = false; }
+}
+function saveMute() {
+  try { localStorage.setItem("mc_muted", muted ? "1" : "0"); } catch (e) { /* ignore */ }
+}
 
 // ----------------------- Initialization / reset -----------------------
 function resetGame() {
@@ -649,6 +655,12 @@ function drawBases() {
         ctx.fillRect(b.x - 14 + (a % 5) * 6, BASE_Y - 12 + (a < 5 ? 0 : -5), 4, 4);
       }
     }
+    // Base number label (1/2/3) — also the keyboard key for that base.
+    ctx.fillStyle = b.alive ? "rgba(207,232,255,0.5)" : "rgba(120,120,130,0.4)";
+    ctx.font = "10px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(String(i + 1), b.x, BASE_Y + 14);
+    ctx.textAlign = "left";
   }
 }
 
@@ -953,6 +965,7 @@ window.addEventListener("keydown", (e) => {
     if (state === STATE.PLAYING) fireAtCrosshair();
   } else if (e.code === "KeyM") {
     muted = !muted;
+    saveMute();
   } else if (e.code === "KeyP") {
     if (state === STATE.PLAYING) setPause(!_paused);
   } else if (e.code === "Digit1") { fireFromBase(0, crosshair.tx, crosshair.ty); }
@@ -1031,6 +1044,7 @@ window.addEventListener("resize", resize);
 
 // ----------------------- Boot -----------------------
 loadHighScore();
+loadMute();
 resetGame();
 resize();
 render(); // draw the start screen once
