@@ -39,6 +39,8 @@ const WAVE_BONUS_AMMO = 5;     // ammo refilled per surviving base each wave
 const CITY_BONUS = 100;        // score per surviving city at wave end
 const AMMO_BONUS = 5;          // score per unused missile at wave end
 const MISSILE_POINTS = 25;     // per enemy missile destroyed
+const COMBO_WINDOW = 1.6;      // seconds a streak stays alive between kills
+const COMBO_BONUS = 5;         // extra points per kill per combo step
 
 // Tunable per-wave difficulty curve (see buildWave).
 const WAVE = {
@@ -157,6 +159,8 @@ let waveTimer = 0;     // counts down WAVE_END pause
 let waveEndTimer = 0;
 let lastTime = 0;
 let shake = 0;        // current screen-shake magnitude in px; decays each frame
+let combo = 0;        // consecutive-kill streak counter
+let comboTimer = 0;   // seconds left before the combo resets
 let running = false;   // true while the rAF loop is active
 let rafId = 0;
 
@@ -189,6 +193,8 @@ function resetGame() {
   waveTimer = 0;
   waveEndTimer = 0;
   shake = 0;
+  combo = 0;
+  comboTimer = 0;
   crosshair.x = crosshair.tx = W / 2;
   crosshair.y = crosshair.ty = H * 0.4;
 }
@@ -377,6 +383,11 @@ function trimParticles() {
 function update(dt) {
   // Screen shake decays smoothly regardless of game state.
   if (shake > 0) shake = Math.max(0, shake - dt * 40);
+  // Combo streak timer decays in active states; expiring resets the streak.
+  if (comboTimer > 0) {
+    comboTimer -= dt;
+    if (comboTimer <= 0) combo = 0;
+  }
   if (state === STATE.START || state === STATE.GAMEOVER) {
     // idle animations: keep particles drifting
     updateParticles(dt);
@@ -552,8 +563,14 @@ function updateExplosions(dt) {
         if (Math.hypot(m.x - e.x, m.y - e.y) <= e.r + margin) {
           createExplosion(m.x, m.y, 36, 20);
           enemyMissiles.splice(j, 1);
-          score += MISSILE_POINTS;
-          popScore(m.x, m.y, MISSILE_POINTS);
+          // Combo: each kill within COMBO_WINDOW extends the streak; longer
+          // streaks award a small per-kill bonus, rewarding chain explosions.
+          combo++;
+          comboTimer = COMBO_WINDOW;
+          const bonus = (combo - 1) * COMBO_BONUS;
+          const pts = MISSILE_POINTS + bonus;
+          score += pts;
+          popScore(m.x, m.y, pts);
         }
       }
     }
@@ -582,6 +599,8 @@ function awardWaveBonus() {
     SFX.blip();
   }
   if (score > highScore) { highScore = score; saveHighScore(); }
+  combo = 0;
+  comboTimer = 0;
 }
 
 function endGame() {
@@ -819,6 +838,15 @@ function drawHUD() {
   // Mute indicator
   ctx.fillStyle = muted ? "#ff5050" : "#39c0ff";
   ctx.fillText(muted ? "MUTE [M]" : "SND [M]", W - 110, 44);
+
+  // Combo indicator (only while a streak is live and > 1).
+  if (combo > 1) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = `rgba(255,206,92,${0.6 + 0.4 * Math.min(1, comboTimer)})`;
+    ctx.font = "bold 18px 'Courier New', monospace";
+    ctx.fillText("x" + combo + " COMBO", W / 2, 50);
+    ctx.textAlign = "left";
+  }
 }
 
 function drawStartScreen() {
