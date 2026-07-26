@@ -21,7 +21,9 @@ steer away from nearby fireballs — trap them or expand the blast radius.
 
 Each surviving base refills some ammo every wave. Score points for every
 missile destroyed, plus an end-of-wave bonus for surviving cities and unused
-ammo. Your high score is saved locally.
+ammo. Consecutive kills build a **combo** streak that adds a per-kill bonus.
+Every 10000 points you earn a **rebuilt city** (classic Missile Command bonus).
+Your high score is saved locally.
 
 ## Controls
 
@@ -30,8 +32,8 @@ ammo. Your high score is saved locally.
 | Aim crosshair | Mouse move or Arrow / WASD keys | Drag on the playfield |
 | Fire from nearest base | Space or Click | Tap the playfield |
 | Fire from a specific base | `1` / `2` / `3` | On-screen base buttons |
-| Pause | `P` | — |
-| Mute | `M` | — |
+| Pause | `P` or on-screen PAUSE button | On-screen PAUSE button |
+| Mute | `M` or on-screen SOUND button | On-screen SOUND button |
 | Start / Restart | Space or Click / tap RESTART | Tap |
 
 ## Architecture
@@ -55,11 +57,21 @@ file, no dependencies).
   small escape margin so dodging feels real.
 - **Difficulty** is driven by `buildWave(n)`: missile count, fall speed,
   spawn gap, and the on-switches for MIRVs (wave 3+) and smart bombs (wave 5+)
-  all scale with the wave number.
+  all scale with the wave number, with per-wave-scaled MIRV/smart chances and
+  a hard speed cap so late waves stay dodgeable.
 - **Audio** is fully synthesized via oscillators and filtered noise bursts —
   no audio files. The `AudioContext` is created lazily on first input to
   satisfy browser autoplay policies.
-- **High score** persists in `localStorage` under `mc_highscore`.
+- **High score** and **mute preference** persist in `localStorage`
+  (`mc_highscore`, `mc_muted`).
+- **Juice & feedback:** screen shake on impacts, combo streak scoring with a
+  HUD indicator, fading "WAVE N" start banner, a "★ NEW HIGH SCORE ★" badge,
+  persistent scorch craters where structures fell, and a cached fireball
+  sprite for cheap rendering of many simultaneous explosions.
+- **Accessibility:** honors `prefers-reduced-motion` (disables shake, trims
+  particles), color-blind-safe smart bombs (dashed trail + diamond shape, not
+  just hue), tappable on-screen mute and pause buttons for keyboard-less
+  play, and full keyboard aim/fire support.
 
 ## Files
 
