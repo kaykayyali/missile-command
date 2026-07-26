@@ -817,10 +817,19 @@ function drawBases() {
     ctx.closePath();
     ctx.fill();
     if (b.alive) {
-      // Ammo pips
+      // Ammo pips (one pip per missile, up to 10; beyond that show a count
+      // so high-ammo bases aren't visually misrepresented).
       ctx.fillStyle = "#ff7a3c";
-      for (let a = 0; a < Math.min(b.ammo, 10); a++) {
+      const shown = Math.min(b.ammo, 10);
+      for (let a = 0; a < shown; a++) {
         ctx.fillRect(b.x - 14 + (a % 5) * 6, BASE_Y - 12 + (a < 5 ? 0 : -5), 4, 4);
+      }
+      if (b.ammo > 10) {
+        ctx.fillStyle = "#ffd070";
+        ctx.font = "9px 'Courier New', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("x" + b.ammo, b.x, BASE_Y - 16);
+        ctx.textAlign = "left";
       }
     }
     // Base number label (1/2/3) — also the keyboard key for that base.
