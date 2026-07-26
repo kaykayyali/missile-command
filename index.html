@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Missile Command</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game" width="800" height="600"></canvas>
+    <!-- Touch fire buttons mirror the three bases for mobile play.
+         They are positioned over the canvas by JS. -->
+    <div id="touch-controls" aria-hidden="true">
+      <button class="fire-btn" data-base="0" aria-label="Fire left base"></button>
+      <button class="fire-btn" data-base="1" aria-label="Fire center base"></button>
+      <button class="fire-btn" data-base="2" aria-label="Fire right base"></button>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

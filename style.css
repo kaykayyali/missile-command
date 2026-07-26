@@ -1,0 +1,59 @@
+:root {
+  --bg: #0a0a12;
+  --fg: #cfe8ff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Courier New", monospace;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  overflow: hidden;
+}
+
+#game-wrap {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game {
+  display: block;
+  background: #05060d;
+  /* Canvas keeps a fixed internal resolution; CSS scales it to fit the viewport. */
+  image-rendering: pixelated;
+  touch-action: none;
+  box-shadow: 0 0 60px rgba(80, 120, 255, 0.15) inset;
+}
+
+/* Touch fire buttons overlay the canvas only on coarse pointers.
+   Hidden by default; game.js adds .show on touch devices. */
+#touch-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+#touch-controls.show { display: block; }
+
+.fire-btn {
+  position: absolute;
+  bottom: 2%;
+  width: 26%;
+  height: 16%;
+  border-radius: 50% 50% 8px 8px;
+  border: 2px solid rgba(255, 220, 120, 0.5);
+  background: rgba(255, 180, 60, 0.12);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.fire-btn[data-base="0"] { left: 4%; }
+.fire-btn[data-base="1"] { left: 37%; }
+.fire-btn[data-base="2"] { right: 4%; }
