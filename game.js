@@ -39,6 +39,7 @@ const WAVE_BONUS_AMMO = 5;     // ammo refilled per surviving base each wave
 const CITY_BONUS = 100;        // score per surviving city at wave end
 const AMMO_BONUS = 5;          // score per unused missile at wave end
 const MISSILE_POINTS = 25;     // per enemy missile destroyed
+const CITY_BONUS_THRESHOLD = 10000; // every N points, a destroyed city is rebuilt
 const COMBO_WINDOW = 1.6;      // seconds a streak stays alive between kills
 const COMBO_BONUS = 5;         // extra points per kill per combo step
 
@@ -164,6 +165,7 @@ let comboTimer = 0;   // seconds left before the combo resets
 let waveBannerTimer = 0; // seconds the 'WAVE N' banner remains visible
 let newHigh = false;     // set when the just-ended game beat the high score
 let attractTimer = 0;    // accumulator for start-screen decorative spawns
+let nextCityBonus = 0;   // score threshold at which the next destroyed city is rebuilt
 let running = false;   // true while the rAF loop is active
 let rafId = 0;
 
@@ -179,6 +181,36 @@ function loadMute() {
 }
 function saveMute() {
   try { localStorage.setItem("mc_muted", muted ? "1" : "0"); } catch (e) { /* ignore */ }
+}
+
+// Central score adder: every score increase goes through here so the
+// city-rebuild bonus (every CITY_BONUS_THRESHOLD points) is checked in one place.
+function addScore(n) {
+  score += n;
+  while (score >= nextCityBonus) {
+    nextCityBonus += CITY_BONUS_THRESHOLD;
+    rebuildCity();
+  }
+}
+
+// Restore the first destroyed city (if any) — the classic Missile Command
+// "bonus city" mechanic that gives a skilled player a path back from losses.
+function rebuildCity() {
+  const dead = cities.find((c) => !c.alive);
+  if (!dead) return; // all six already standing — nothing to rebuild
+  dead.alive = true;
+  // celebratory burst + sound
+  for (let i = 0; i < 14; i++) {
+    particles.push({
+      x: dead.x, y: BASE_Y,
+      vx: (Math.random() * 2 - 1) * 100, vy: -Math.random() * 180 - 30,
+      life: 1.0, max: 1.0, kind: "spark", hue: 190,
+    });
+  }
+  trimParticles();
+  popScore(dead.x, BASE_Y - 20, "CITY!");
+  tone({ freq: 660, dur: 0.12, gain: 0.2 });
+  tone({ freq: 990, dur: 0.18, gain: 0.2, when: 0.12 });
 }
 
 // ----------------------- Initialization / reset -----------------------
@@ -201,6 +233,7 @@ function resetGame() {
   waveBannerTimer = 0;
   newHigh = false;
   attractTimer = 0;
+  nextCityBonus = CITY_BONUS_THRESHOLD;
   crosshair.x = crosshair.tx = W / 2;
   crosshair.y = crosshair.ty = H * 0.4;
 }
@@ -603,7 +636,7 @@ function updateExplosions(dt) {
           comboTimer = COMBO_WINDOW;
           const bonus = (combo - 1) * COMBO_BONUS;
           const pts = MISSILE_POINTS + bonus;
-          score += pts;
+          addScore(pts);
           popScore(m.x, m.y, pts);
         }
       }
@@ -628,7 +661,7 @@ function awardWaveBonus() {
   const ammoLeft = bases.reduce((s, b) => s + (b.alive ? b.ammo : 0), 0);
   const bonus = liveCities * CITY_BONUS + ammoLeft * AMMO_BONUS;
   if (bonus > 0) {
-    score += bonus;
+    addScore(bonus);
     popScore(W / 2, H / 2 - 40, bonus);
     SFX.blip();
   }
