@@ -161,6 +161,8 @@ let lastTime = 0;
 let shake = 0;        // current screen-shake magnitude in px; decays each frame
 let combo = 0;        // consecutive-kill streak counter
 let comboTimer = 0;   // seconds left before the combo resets
+let waveBannerTimer = 0; // seconds the 'WAVE N' banner remains visible
+let newHigh = false;     // set when the just-ended game beat the high score
 let running = false;   // true while the rAF loop is active
 let rafId = 0;
 
@@ -195,6 +197,8 @@ function resetGame() {
   shake = 0;
   combo = 0;
   comboTimer = 0;
+  waveBannerTimer = 0;
+  newHigh = false;
   crosshair.x = crosshair.tx = W / 2;
   crosshair.y = crosshair.ty = H * 0.4;
 }
@@ -205,6 +209,7 @@ function startWave(n) {
   waveDef = buildWave(n);
   spawnQueue = waveDef.spawns.slice();
   waveTimer = 0;
+  waveBannerTimer = 1.8;
   SFX.waveStart();
 }
 
@@ -388,6 +393,7 @@ function update(dt) {
     comboTimer -= dt;
     if (comboTimer <= 0) combo = 0;
   }
+  if (waveBannerTimer > 0) waveBannerTimer -= dt;
   if (state === STATE.START || state === STATE.GAMEOVER) {
     // idle animations: keep particles drifting
     updateParticles(dt);
@@ -607,7 +613,8 @@ function endGame() {
   state = STATE.GAMEOVER;
   setPause(false);
   addShake(16);
-  if (score > highScore) { highScore = score; saveHighScore(); }
+  newHigh = score > highScore;
+  if (newHigh) { highScore = score; saveHighScore(); }
   SFX.gameOver();
 }
 
@@ -641,8 +648,20 @@ function render() {
   if (state === STATE.START) drawStartScreen();
   else if (state === STATE.GAMEOVER) drawGameOverScreen();
   else if (state === STATE.WAVE_END) drawWaveEnd();
+  if (waveBannerTimer > 0 && state === STATE.PLAYING) drawWaveBanner();
   if (_paused && state === STATE.PLAYING) drawPauseOverlay();
   ctx.restore();
+}
+
+function drawWaveBanner() {
+  const a = Math.min(1, waveBannerTimer / 1.8);
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "#ffce5c";
+  ctx.textAlign = "center";
+  ctx.font = "bold 40px 'Courier New', monospace";
+  ctx.fillText("WAVE " + wave, W / 2, H * 0.35);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "left";
 }
 
 function drawPauseOverlay() {
@@ -877,6 +896,11 @@ function drawGameOverScreen() {
   ctx.fillText("Wave reached: " + wave, W / 2, H / 2 + 32);
   ctx.fillStyle = "#ffce5c";
   ctx.fillText("High Score: " + highScore, W / 2, H / 2 + 60);
+  if (newHigh) {
+    ctx.fillStyle = "#9fffd6";
+    ctx.font = "bold 16px 'Courier New', monospace";
+    ctx.fillText("★ NEW HIGH SCORE ★", W / 2, H / 2 + 84);
+  }
 
   // Restart button (drawn; hit-tested in input handler).
   const btn = restartBtnRect();
