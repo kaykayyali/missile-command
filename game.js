@@ -732,9 +732,13 @@ function drawBases() {
 }
 
 function drawMissileTrails() {
-  // Enemy trails (red)
+  // Enemy trails (red). Smart bombs get a dashed trail + diamond marker so
+  // they're distinguishable without relying on the pink/red color difference
+  // (color-blind support).
   ctx.lineWidth = 1.5;
   for (const m of enemyMissiles) {
+    ctx.save();
+    if (m.isSmart) ctx.setLineDash([3, 3]);
     ctx.strokeStyle = m.isSmart ? "#ff5cff" : "#ff4040";
     ctx.beginPath();
     for (let i = 0; i < m.trail.length; i++) {
@@ -743,8 +747,21 @@ function drawMissileTrails() {
     }
     ctx.lineTo(m.x, m.y);
     ctx.stroke();
-    ctx.fillStyle = m.isSmart ? "#ff5cff" : "#ff7070";
-    ctx.fillRect(m.x - 1.5, m.y - 1.5, 3, 3);
+    ctx.restore();
+    if (m.isSmart) {
+      // diamond marker
+      ctx.fillStyle = "#ff5cff";
+      ctx.beginPath();
+      ctx.moveTo(m.x, m.y - 4);
+      ctx.lineTo(m.x + 4, m.y);
+      ctx.lineTo(m.x, m.y + 4);
+      ctx.lineTo(m.x - 4, m.y);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = "#ff7070";
+      ctx.fillRect(m.x - 1.5, m.y - 1.5, 3, 3);
+    }
   }
   // Player trails (cyan)
   ctx.strokeStyle = "#5cffd6";
