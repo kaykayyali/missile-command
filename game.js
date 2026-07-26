@@ -924,16 +924,18 @@ function toCanvas(clientX, clientY) {
   return { x: (clientX - r.left) * sx, y: (clientY - r.top) * sy };
 }
 
-// Mouse aim + click to fire.
+// Mouse aim + click to fire. Mouse aims 1:1 (instant) for a responsive feel;
+// keyboard steering still uses the eased lerp toward the target.
 canvas.addEventListener("mousemove", (e) => {
   const p = toCanvas(e.clientX, e.clientY);
-  crosshair.tx = p.x; crosshair.ty = p.y;
+  crosshair.tx = crosshair.x = p.x;
+  crosshair.ty = crosshair.y = p.y;
 });
 canvas.addEventListener("mousedown", (e) => {
   ensureAudio();
   if (state === STATE.START) { beginGame(); return; }
   if (state === STATE.GAMEOVER) { handleRestartClick(e); return; }
-  fireAtCrosshair();
+  if (state === STATE.PLAYING) fireAtCrosshair();
 });
 canvas.addEventListener("mouseup", () => { pointerDown = false; });
 
@@ -951,7 +953,7 @@ canvas.addEventListener("touchstart", (e) => {
   }
   if (state === STATE.START) { beginGame(); return; }
   if (state === STATE.GAMEOVER) { handleRestartTouch(e); return; }
-  fireAtCrosshair();
+  if (state === STATE.PLAYING) fireAtCrosshair();
 }, { passive: false });
 canvas.addEventListener("touchmove", (e) => {
   e.preventDefault();
@@ -967,11 +969,13 @@ fireButtons.forEach((btn) => {
   btn.addEventListener("touchstart", (e) => {
     e.preventDefault();
     ensureAudio();
+    if (state !== STATE.PLAYING) return;
     const idx = parseInt(btn.dataset.base, 10);
     fireFromBase(idx, crosshair.tx, crosshair.ty);
   }, { passive: false });
   btn.addEventListener("click", (e) => {
     ensureAudio();
+    if (state !== STATE.PLAYING) return;
     const idx = parseInt(btn.dataset.base, 10);
     fireFromBase(idx, crosshair.tx, crosshair.ty);
   });
@@ -1000,9 +1004,9 @@ window.addEventListener("keydown", (e) => {
     saveMute();
   } else if (e.code === "KeyP") {
     if (state === STATE.PLAYING) setPause(!_paused);
-  } else if (e.code === "Digit1") { fireFromBase(0, crosshair.tx, crosshair.ty); }
-  else if (e.code === "Digit2") { fireFromBase(1, crosshair.tx, crosshair.ty); }
-  else if (e.code === "Digit3") { fireFromBase(2, crosshair.tx, crosshair.ty); }
+  } else if (e.code === "Digit1") { if (state === STATE.PLAYING) fireFromBase(0, crosshair.tx, crosshair.ty); }
+  else if (e.code === "Digit2") { if (state === STATE.PLAYING) fireFromBase(1, crosshair.tx, crosshair.ty); }
+  else if (e.code === "Digit3") { if (state === STATE.PLAYING) fireFromBase(2, crosshair.tx, crosshair.ty); }
 });
 window.addEventListener("keyup", (e) => { keys[e.code] = false; });
 
