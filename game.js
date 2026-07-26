@@ -428,7 +428,9 @@ function update(dt) {
     updateExplosions(dt);
     if (waveEndTimer <= 0) {
       const liveCities = cities.filter((c) => c.alive).length;
-      if (liveCities === 0) {
+      const liveBases = bases.filter((b) => b.alive).length;
+      if (liveCities === 0 || liveBases === 0) {
+        // No cities to defend, or no bases left to fire from → unwinnable.
         endGame();
       } else {
         startWave(wave + 1);
@@ -641,6 +643,11 @@ function endGame() {
   addShake(16);
   newHigh = score > highScore;
   if (newHigh) { highScore = score; saveHighScore(); }
+  // Freeze the board: drop in-flight missiles and pending spawns so nothing
+  // keeps detonating under the game-over overlay.
+  enemyMissiles = [];
+  playerMissiles = [];
+  spawnQueue = [];
   SFX.gameOver();
 }
 
