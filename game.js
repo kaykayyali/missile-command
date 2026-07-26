@@ -70,6 +70,11 @@ let audioCtx = null;
 let masterGain = null;
 let muted = false;
 
+// Respect the OS "reduce motion" preference: disables screen shake and
+// trims particle bursts so the game stays calm for motion-sensitive players.
+const reducedMotion = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) || false;
+const PARTICLE_CAP = 220;
+
 // Lazily create the AudioContext on first user gesture (browsers block autoplay).
 function ensureAudio() {
   if (audioCtx) return;
@@ -331,13 +336,15 @@ function createExplosion(x, y, maxR = EXPLOSION_MAX, hue = 30) {
     alive: true,
   });
   SFX.explosion();
-  // A few sparks for juice.
-  for (let i = 0; i < 8; i++) {
+  // A few sparks for juice (trimmed under reduced-motion).
+  const sparks = reducedMotion ? 2 : 8;
+  for (let i = 0; i < sparks; i++) {
     particles.push({
       x, y, vx: (Math.random() * 2 - 1) * 120, vy: (Math.random() * 2 - 1) * 120,
       life: 0.5, max: 0.5, kind: "spark", hue,
     });
   }
+  trimParticles();
 }
 
 // ----------------------- Particles (score pops, debris) -----------------------
@@ -346,13 +353,23 @@ function popScore(x, y, amount) {
 }
 
 function groundDebris(x) {
-  for (let i = 0; i < 12; i++) {
+  const n = reducedMotion ? 3 : 12;
+  for (let i = 0; i < n; i++) {
     particles.push({
       x, y: GROUND_Y,
       vx: (Math.random() * 2 - 1) * 160,
       vy: -Math.random() * 220 - 40,
       life: 0.8, max: 0.8, kind: "debris", hue: 30,
     });
+  }
+  trimParticles();
+}
+
+// Hard cap on live particles so a long, busy wave can't balloon particle count
+// and tank framerate.
+function trimParticles() {
+  if (particles.length > PARTICLE_CAP) {
+    particles.splice(0, particles.length - PARTICLE_CAP);
   }
 }
 
@@ -504,11 +521,11 @@ function hitGround(x) {
     }
     createExplosion(best.x, GROUND_Y - 6, 60, 0);
     groundDebris(best.x);
-    shake = Math.min(14, shake + 8); // structure hit = heavy shake
+    addShake(8); // structure hit = heavy shake
   } else {
     // Missed everything — small ground puff.
     createExplosion(x, GROUND_Y - 4, 30, 30);
-    shake = Math.min(14, shake + 2);
+    addShake(2);
   }
 }
 
@@ -569,7 +586,8 @@ function awardWaveBonus() {
 
 function endGame() {
   state = STATE.GAMEOVER;
-  shake = 16;
+  setPause(false);
+  addShake(16);
   if (score > highScore) { highScore = score; saveHighScore(); }
   SFX.gameOver();
 }
@@ -965,6 +983,9 @@ fireButtons.forEach((btn) => {
 let _paused = false;
 let keys = {};
 function setPause(v) { _paused = v; }
+
+// Add screen-shake, no-op when the player prefers reduced motion.
+function addShake(n) { if (!reducedMotion) shake = Math.min(14, shake + n); }
 
 window.addEventListener("keydown", (e) => {
   ensureAudio();
