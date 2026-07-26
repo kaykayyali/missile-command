@@ -42,16 +42,21 @@ const MISSILE_POINTS = 25;     // per enemy missile destroyed
 
 // Tunable per-wave difficulty curve (see buildWave).
 const WAVE = {
-  baseMissiles: 8,      // missiles at wave 1
+  baseMissiles: 6,      // missiles at wave 1 (gentle start)
   missilesGrowth: 3,    // +N missiles each wave
-  speed: 70,            // px/sec enemy missile fall speed at wave 1
-  speedGrowth: 10,      // +N speed each wave
-  spawnGap: 1.4,        // seconds between spawns at wave 1
-  spawnGapShrink: 0.08, // gap reduction per wave (floored)
+  speed: 60,            // px/sec enemy missile fall speed at wave 1
+  speedGrowth: 9,       // +N speed each wave
+  speedCap: 210,        // hard speed ceiling so late waves stay dodgeable
+  spawnGap: 1.7,        // seconds between spawns at wave 1
+  spawnGapShrink: 0.08, // gap reduction per wave (floored at 0.5)
   mirvFromWave: 3,      // wave at which splitting MIRVs appear
-  mirvChance: 0.25,     // chance an enemy missile splits into a MIRV
+  mirvChanceBase: 0.18, // base MIRV split chance at wave 3
+  mirvChanceGrow: 0.04, // +chance per wave after the MIRV on-wave
+  mirvChanceCap: 0.5,
   smartFromWave: 5,     // wave at which smart bombs appear
-  smartChance: 0.2,     // chance an enemy missile is "smart"
+  smartChanceBase: 0.12, // base smart-bomb chance at wave 5
+  smartChanceGrow: 0.03,
+  smartChanceCap: 0.45,
 };
 
 // ----------------------- Canvas / DOM -----------------------
@@ -194,13 +199,19 @@ function startWave(n) {
 
 function buildWave(n) {
   const count = WAVE.baseMissiles + (n - 1) * WAVE.missilesGrowth;
-  const speed = Math.min(WAVE.speed + (n - 1) * WAVE.speedGrowth, 220);
+  const speed = Math.min(WAVE.speed + (n - 1) * WAVE.speedGrowth, WAVE.speedCap);
   const gap = Math.max(0.5, WAVE.spawnGap - (n - 1) * WAVE.spawnGapShrink);
-  const allowMirv = n >= WAVE.mirvFromWave;
-  const allowSmart = n >= WAVE.smartFromWave;
+  // MIRV and smart-bomb chances scale with wave so the late game escalates
+  // without dumping every threat type on the player at once.
+  const mirvChance = n >= WAVE.mirvFromWave
+    ? Math.min(WAVE.mirvChanceCap, WAVE.mirvChanceBase + (n - WAVE.mirvFromWave) * WAVE.mirvChanceGrow)
+    : 0;
+  const smartChance = n >= WAVE.smartFromWave
+    ? Math.min(WAVE.smartChanceCap, WAVE.smartChanceBase + (n - WAVE.smartFromWave) * WAVE.smartChanceGrow)
+    : 0;
 
   const spawns = [];
-  let t = 0.6 + Math.random() * 0.4; // first spawn offset
+  let t = 0.8 + Math.random() * 0.4; // first spawn offset
   for (let i = 0; i < count; i++) {
     const target = pickTarget();
     const startX = 40 + Math.random() * (W - 80);
@@ -209,14 +220,14 @@ function buildWave(n) {
       x: startX,
       targetX: target,
       speed,
-      allowMirv,
-      allowSmart,
+      mirvChance,
+      smartChance,
     });
     // Occasionally cluster two missiles closer together at higher waves.
     const jitter = (n >= 4 && Math.random() < 0.3) ? gap * 0.3 : gap;
     t += jitter * (0.7 + Math.random() * 0.6);
   }
-  return { spawns, count, speed, gap, allowMirv, allowSmart };
+  return { spawns, count, speed, gap, mirvChance, smartChance };
 }
 
 function pickTarget() {
@@ -236,7 +247,7 @@ function spawnEnemyMissile(def) {
   const dy = GROUND_Y - 30;
   const dist = Math.hypot(dx, dy);
   const speed = def.speed;
-  const isSmart = def.allowSmart && Math.random() < WAVE.smartChance;
+  const isSmart = def.smartChance > 0 && Math.random() < def.smartChance;
   const m = {
     x: startX, y: 30,
     vx: (dx / dist) * speed,
@@ -244,7 +255,7 @@ function spawnEnemyMissile(def) {
     targetX,
     isSmart,
     trail: [],
-    splitAt: def.allowMirv && Math.random() < WAVE.mirvChance ? (0.35 + Math.random() * 0.2) : null,
+    splitAt: def.mirvChance > 0 && Math.random() < def.mirvChance ? (0.35 + Math.random() * 0.2) : null,
     age: 0,
     alive: true,
   };
