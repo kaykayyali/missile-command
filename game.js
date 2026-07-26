@@ -78,6 +78,25 @@ let muted = false;
 const reducedMotion = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) || false;
 const PARTICLE_CAP = 220;
 
+// Pre-rendered explosion fireball sprite. Drawing this scaled per frame is
+// far cheaper than allocating a fresh radial gradient for every explosion on
+// every frame (busy waves can have a dozen fireballs at once).
+let explosionSprite = null;
+try {
+  const size = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, "rgba(255,255,210,0.95)");
+  grad.addColorStop(0.4, "rgba(255,170,60,0.8)");
+  grad.addColorStop(0.8, "rgba(255,80,30,0.4)");
+  grad.addColorStop(1, "rgba(120,20,10,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  explosionSprite = c;
+} catch (e) { /* sprite unavailable — fall back to per-frame gradient */ }
+
 // Lazily create the AudioContext on first user gesture (browsers block autoplay).
 function ensureAudio() {
   if (audioCtx) return;
@@ -862,15 +881,23 @@ function drawMissileTrails() {
 
 function drawExplosions() {
   for (const e of explosions) {
-    const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, Math.max(1, e.r));
-    g.addColorStop(0, "rgba(255,255,210,0.95)");
-    g.addColorStop(0.4, "rgba(255,170,60,0.8)");
-    g.addColorStop(0.8, "rgba(255,80,30,0.4)");
-    g.addColorStop(1, "rgba(120,20,10,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, Math.max(1, e.r), 0, Math.PI * 2);
-    ctx.fill();
+    const r = Math.max(1, e.r);
+    if (explosionSprite) {
+      // Scale the cached sprite to the current diameter — one drawImage, no
+      // per-frame gradient allocation.
+      const d = r * 2;
+      ctx.drawImage(explosionSprite, e.x - r, e.y - r, d, d);
+    } else {
+      const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, r);
+      g.addColorStop(0, "rgba(255,255,210,0.95)");
+      g.addColorStop(0.4, "rgba(255,170,60,0.8)");
+      g.addColorStop(0.8, "rgba(255,80,30,0.4)");
+      g.addColorStop(1, "rgba(120,20,10,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 }
 
