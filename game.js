@@ -288,11 +288,18 @@ function fireFromBase(baseIndex, tx, ty) {
 }
 
 function fireAtCrosshair() {
+  const b = firingBase();
+  if (!b) return;
+  fireFromBase(bases.indexOf(b), crosshair.x, crosshair.y);
+}
+
+// The base that would fire given the current crosshair — nearest alive base
+// that still has ammo. Shared by fireAtCrosshair and the aim-assist render.
+function firingBase() {
   const aliveBases = bases.filter((bb) => bb.alive && bb.ammo > 0);
-  if (!aliveBases.length) return;
-  // Fire from the base nearest the crosshair horizontally.
+  if (!aliveBases.length) return null;
   aliveBases.sort((a, c) => Math.abs(a.x - crosshair.x) - Math.abs(c.x - crosshair.x));
-  fireFromBase(bases.indexOf(aliveBases[0]), crosshair.x, crosshair.y);
+  return aliveBases[0];
 }
 
 // ----------------------- Explosions -----------------------
@@ -703,6 +710,37 @@ function drawParticles() {
 function drawCrosshair() {
   if (state !== STATE.PLAYING && state !== STATE.WAVE_END) return;
   const { x, y } = crosshair;
+
+  // Aim assist: a faint dashed line from the base that would fire to the
+  // crosshair, plus a soft ring on that base. Lets the player see which
+  // base/ammo a click will spend — important once bases start getting lost.
+  const b = firingBase();
+  if (b) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(159,255,214,0.25)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    ctx.moveTo(b.x, BASE_Y - 14);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Highlight the firing base.
+    ctx.strokeStyle = "rgba(159,255,214,0.7)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(b.x, BASE_Y - 14, 16, Math.PI, 0);
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    // No ammo anywhere — warn the player at the crosshair.
+    ctx.fillStyle = "#ff5050";
+    ctx.font = "10px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("NO AMMO", x, y - 16);
+    ctx.textAlign = "left";
+  }
+
   ctx.strokeStyle = "#9fffd6";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
