@@ -166,6 +166,7 @@ let waveBannerTimer = 0; // seconds the 'WAVE N' banner remains visible
 let newHigh = false;     // set when the just-ended game beat the high score
 let attractTimer = 0;    // accumulator for start-screen decorative spawns
 let nextCityBonus = 0;   // score threshold at which the next destroyed city is rebuilt
+let craters = [];       // {x, r} scorch marks left by destroyed structures
 let running = false;   // true while the rAF loop is active
 let rafId = 0;
 
@@ -234,6 +235,7 @@ function resetGame() {
   newHigh = false;
   attractTimer = 0;
   nextCityBonus = CITY_BONUS_THRESHOLD;
+  craters = [];
   crosshair.x = crosshair.tx = W / 2;
   crosshair.y = crosshair.ty = H * 0.4;
 }
@@ -598,6 +600,7 @@ function hitGround(x) {
     }
     createExplosion(best.x, GROUND_Y - 6, 60, 0);
     groundDebris(best.x);
+    craters.push({ x: best.x, r: 26 });
     addShake(8); // structure hit = heavy shake
   } else {
     // Missed everything — small ground puff.
@@ -702,6 +705,19 @@ function render() {
   ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
   ctx.fillStyle = "#2a3550";
   ctx.fillRect(0, GROUND_Y, W, 4);
+
+  // Scorch craters from destroyed structures (drawn before the structures so
+  // surviving ones sit on top; craters persist for the whole game).
+  for (const c of craters) {
+    ctx.fillStyle = "rgba(8,6,4,0.6)";
+    ctx.beginPath();
+    ctx.ellipse(c.x, GROUND_Y + 6, c.r, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(60,30,10,0.4)";
+    ctx.beginPath();
+    ctx.ellipse(c.x, GROUND_Y + 6, c.r * 0.6, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   drawCities();
   drawBases();
