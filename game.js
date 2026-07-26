@@ -163,6 +163,7 @@ let combo = 0;        // consecutive-kill streak counter
 let comboTimer = 0;   // seconds left before the combo resets
 let waveBannerTimer = 0; // seconds the 'WAVE N' banner remains visible
 let newHigh = false;     // set when the just-ended game beat the high score
+let attractTimer = 0;    // accumulator for start-screen decorative spawns
 let running = false;   // true while the rAF loop is active
 let rafId = 0;
 
@@ -199,6 +200,7 @@ function resetGame() {
   comboTimer = 0;
   waveBannerTimer = 0;
   newHigh = false;
+  attractTimer = 0;
   crosshair.x = crosshair.tx = W / 2;
   crosshair.y = crosshair.ty = H * 0.4;
 }
@@ -395,7 +397,26 @@ function update(dt) {
   }
   if (waveBannerTimer > 0) waveBannerTimer -= dt;
   if (state === STATE.START || state === STATE.GAMEOVER) {
-    // idle animations: keep particles drifting
+    // Attract mode on the title screen: occasionally drop a harmless
+    // decorative missile that pops at the ground so the screen isn't static.
+    if (state === STATE.START) {
+      attractTimer += dt;
+      if (attractTimer > 1.1) {
+        attractTimer = 0;
+        const startX = 60 + Math.random() * (W - 120);
+        const targetX = 60 + Math.random() * (W - 120);
+        const dx = targetX - startX, dy = GROUND_Y - 30;
+        const dist = Math.hypot(dx, dy) || 1;
+        const sp = 80 + Math.random() * 40;
+        enemyMissiles.push({
+          x: startX, y: 30, vx: (dx / dist) * sp, vy: (dy / dist) * sp,
+          targetX, isSmart: false, trail: [], splitAt: null, age: 0, alive: true,
+          decor: true,
+        });
+      }
+    }
+    updateMissiles(dt);
+    updateExplosions(dt);
     updateParticles(dt);
     return;
   }
@@ -502,10 +523,14 @@ function updateMissiles(dt) {
     m.x += m.vx * dt;
     m.y += m.vy * dt;
 
-    // Reached the ground line → hit a target.
+    // Reached the ground line → hit a target (decor missiles just pop).
     if (m.y >= GROUND_Y) {
       m.y = GROUND_Y;
-      hitGround(m.x);
+      if (m.decor) {
+        createExplosion(m.x, GROUND_Y - 4, 26, 30);
+      } else {
+        hitGround(m.x);
+      }
       enemyMissiles.splice(i, 1);
       continue;
     }
@@ -564,6 +589,7 @@ function updateExplosions(dt) {
     if (e.r > 4) {
       for (let j = enemyMissiles.length - 1; j >= 0; j--) {
         const m = enemyMissiles[j];
+        if (m.decor) continue; // title-screen decor missiles aren't scored targets
         // Smart bombs can escape the edge; give them a small margin.
         const margin = m.isSmart ? 6 : 0;
         if (Math.hypot(m.x - e.x, m.y - e.y) <= e.r + margin) {
