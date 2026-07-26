@@ -980,9 +980,18 @@ function drawHUD() {
   ctx.fillText("HI " + String(highScore).padStart(6, "0"), W - 12, 24);
   ctx.textAlign = "left";
 
-  // Mute indicator
+  // Mute toggle (drawn as a tappable button; hit-tested in input handlers).
+  const mb = muteBtnRect();
+  ctx.fillStyle = muted ? "rgba(255,80,80,0.15)" : "rgba(57,192,255,0.12)";
+  ctx.fillRect(mb.x, mb.y, mb.w, mb.h);
+  ctx.strokeStyle = muted ? "#ff5050" : "#39c0ff";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mb.x, mb.y, mb.w, mb.h);
   ctx.fillStyle = muted ? "#ff5050" : "#39c0ff";
-  ctx.fillText(muted ? "MUTE [M]" : "SND [M]", W - 110, 44);
+  ctx.font = "12px 'Courier New', monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(muted ? "MUTED" : "SOUND", mb.x + mb.w / 2, mb.y + 15);
+  ctx.textAlign = "left";
 
   // Combo indicator (only while a streak is live and > 1).
   if (combo > 1) {
@@ -1066,6 +1075,22 @@ function restartBtnRect() {
   return { x: W / 2 - w / 2, y: H / 2 + 90, w, h };
 }
 
+// Hit-test rectangle for the on-canvas mute toggle (top-right of the HUD).
+function muteBtnRect() {
+  return { x: W - 116, y: 28, w: 104, h: 22 };
+}
+
+function inRect(p, r) {
+  return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+}
+
+function toggleMute() {
+  ensureAudio();
+  muted = !muted;
+  saveMute();
+  if (!muted) SFX.blip();
+}
+
 // ----------------------- Main loop -----------------------
 function loop(ts) {
   if (!running) return;
@@ -1111,6 +1136,8 @@ canvas.addEventListener("mousemove", (e) => {
 });
 canvas.addEventListener("mousedown", (e) => {
   ensureAudio();
+  const p = toCanvas(e.clientX, e.clientY);
+  if (inRect(p, muteBtnRect())) { toggleMute(); return; }
   if (state === STATE.START) { beginGame(); return; }
   if (state === STATE.GAMEOVER) { handleRestartClick(e); return; }
   if (state === STATE.PLAYING) fireAtCrosshair();
@@ -1122,13 +1149,16 @@ canvas.addEventListener("mouseup", () => { pointerDown = false; });
 canvas.addEventListener("touchstart", (e) => {
   e.preventDefault();
   ensureAudio();
+  let p = null;
   if (e.touches.length) {
     const t = e.touches[0];
-    const p = toCanvas(t.clientX, t.clientY);
+    p = toCanvas(t.clientX, t.clientY);
     crosshair.tx = p.x; crosshair.ty = p.y;
     // Move crosshair instantly on first touch for responsiveness.
     crosshair.x = p.x; crosshair.y = p.y;
   }
+  // Tap on the on-canvas mute button toggles sound (touch-accessible).
+  if (p && inRect(p, muteBtnRect())) { toggleMute(); return; }
   if (state === STATE.START) { beginGame(); return; }
   if (state === STATE.GAMEOVER) { handleRestartTouch(e); return; }
   if (state === STATE.PLAYING) fireAtCrosshair();
