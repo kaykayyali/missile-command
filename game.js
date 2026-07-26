@@ -1005,6 +1005,14 @@ function handleRestartTouch(e) {
 }
 
 // ----------------------- Responsive canvas -----------------------
+// Auto-pause if the tab loses focus or is hidden, so the player can't lose a
+// city to a missile that "fell" while they were away. Uses the dedicated
+// `_paused` flag so it composes cleanly with the manual P-toggle.
+function autoPause() {
+  if (state === STATE.PLAYING) setPause(true);
+}
+window.addEventListener("blur", autoPause);
+window.addEventListener("visibilitychange", () => { if (document.hidden) autoPause(); });
 function resize() {
   const vw = window.innerWidth, vh = window.innerHeight;
   // Keep the 4:3 aspect ratio, fit within viewport.
