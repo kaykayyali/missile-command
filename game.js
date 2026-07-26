@@ -989,6 +989,21 @@ function drawHUD() {
   ctx.fillText("HI " + String(highScore).padStart(6, "0"), W - 12, 24);
   ctx.textAlign = "left";
 
+  // Pause toggle button (tappable; mirrors the keyboard P key for touch).
+  if (state === STATE.PLAYING || _paused) {
+    const pb = pauseBtnRect();
+    ctx.fillStyle = "rgba(159,255,214,0.10)";
+    ctx.fillRect(pb.x, pb.y, pb.w, pb.h);
+    ctx.strokeStyle = "#9fffd6";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pb.x, pb.y, pb.w, pb.h);
+    ctx.fillStyle = "#9fffd6";
+    ctx.font = "12px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(_paused ? "RESUME" : "PAUSE", pb.x + pb.w / 2, pb.y + 15);
+    ctx.textAlign = "left";
+  }
+
   // Mute toggle (drawn as a tappable button; hit-tested in input handlers).
   const mb = muteBtnRect();
   ctx.fillStyle = muted ? "rgba(255,80,80,0.15)" : "rgba(57,192,255,0.12)";
@@ -1088,6 +1103,10 @@ function restartBtnRect() {
 function muteBtnRect() {
   return { x: W - 116, y: 28, w: 104, h: 22 };
 }
+// Hit-test rectangle for the on-canvas pause toggle (top-left of the HUD).
+function pauseBtnRect() {
+  return { x: 12, y: 28, w: 90, h: 22 };
+}
 
 function inRect(p, r) {
   return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
@@ -1098,6 +1117,10 @@ function toggleMute() {
   muted = !muted;
   saveMute();
   if (!muted) SFX.blip();
+}
+
+function togglePauseBtn() {
+  if (state === STATE.PLAYING) { setPause(!_paused); SFX.blip(); }
 }
 
 // ----------------------- Main loop -----------------------
@@ -1147,6 +1170,7 @@ canvas.addEventListener("mousedown", (e) => {
   ensureAudio();
   const p = toCanvas(e.clientX, e.clientY);
   if (inRect(p, muteBtnRect())) { toggleMute(); return; }
+  if (inRect(p, pauseBtnRect())) { togglePauseBtn(); return; }
   if (state === STATE.START) { beginGame(); return; }
   if (state === STATE.GAMEOVER) { handleRestartClick(e); return; }
   if (state === STATE.PLAYING) fireAtCrosshair();
@@ -1168,6 +1192,7 @@ canvas.addEventListener("touchstart", (e) => {
   }
   // Tap on the on-canvas mute button toggles sound (touch-accessible).
   if (p && inRect(p, muteBtnRect())) { toggleMute(); return; }
+  if (p && inRect(p, pauseBtnRect())) { togglePauseBtn(); return; }
   if (state === STATE.START) { beginGame(); return; }
   if (state === STATE.GAMEOVER) { handleRestartTouch(e); return; }
   if (state === STATE.PLAYING) fireAtCrosshair();
