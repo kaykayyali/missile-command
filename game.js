@@ -146,6 +146,7 @@ let spawnQueue = [];  // pending spawns: {at, x, targetX}
 let waveTimer = 0;     // counts down WAVE_END pause
 let waveEndTimer = 0;
 let lastTime = 0;
+let shake = 0;        // current screen-shake magnitude in px; decays each frame
 let running = false;   // true while the rAF loop is active
 let rafId = 0;
 
@@ -171,6 +172,7 @@ function resetGame() {
   waveDef = null;
   waveTimer = 0;
   waveEndTimer = 0;
+  shake = 0;
   crosshair.x = crosshair.tx = W / 2;
   crosshair.y = crosshair.ty = H * 0.4;
 }
@@ -339,6 +341,8 @@ function groundDebris(x) {
 
 // ----------------------- Update -----------------------
 function update(dt) {
+  // Screen shake decays smoothly regardless of game state.
+  if (shake > 0) shake = Math.max(0, shake - dt * 40);
   if (state === STATE.START || state === STATE.GAMEOVER) {
     // idle animations: keep particles drifting
     updateParticles(dt);
@@ -483,9 +487,11 @@ function hitGround(x) {
     }
     createExplosion(best.x, GROUND_Y - 6, 60, 0);
     groundDebris(best.x);
+    shake = Math.min(14, shake + 8); // structure hit = heavy shake
   } else {
     // Missed everything — small ground puff.
     createExplosion(x, GROUND_Y - 4, 30, 30);
+    shake = Math.min(14, shake + 2);
   }
 }
 
@@ -546,15 +552,20 @@ function awardWaveBonus() {
 
 function endGame() {
   state = STATE.GAMEOVER;
+  shake = 16;
   if (score > highScore) { highScore = score; saveHighScore(); }
   SFX.gameOver();
 }
 
 // ----------------------- Rendering -----------------------
 function render() {
+  ctx.save();
+  if (shake > 0) {
+    ctx.translate((Math.random() * 2 - 1) * shake, (Math.random() * 2 - 1) * shake);
+  }
   // Sky
   ctx.fillStyle = "#05060d";
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(-20, -20, W + 40, H + 40);
 
   // Stars (deterministic, drawn each frame for the twinkle-less retro look)
   drawStars();
@@ -577,6 +588,7 @@ function render() {
   else if (state === STATE.GAMEOVER) drawGameOverScreen();
   else if (state === STATE.WAVE_END) drawWaveEnd();
   if (_paused && state === STATE.PLAYING) drawPauseOverlay();
+  ctx.restore();
 }
 
 function drawPauseOverlay() {
@@ -827,7 +839,7 @@ function drawWaveEnd() {
 
 function overlay() {
   ctx.fillStyle = "rgba(5,6,13,0.75)";
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(-20, -20, W + 40, H + 40);
 }
 
 function restartBtnRect() {
